@@ -1,4 +1,8 @@
-# Copyright 2018 Daniel Shervheim
+#
+# 2018-2019 Daniel Shervheim
+# danielshervheim@gmail.com
+# github.com/danielshervheim
+#
 
 CXX = clang
 CXXFLAGS = -Wall

@@ -4,7 +4,6 @@
 // github.com/danielshervheim
 //
 
-#include <gdk/gdk.h>
 #include <gtk/gtk.h>
 #include <errno.h>
 #include <fcntl.h>

@@ -1,0 +1,70 @@
+/*
+2018-2019 Daniel Shervheim
+danielshervheim@gmail.com
+github.com/danielshervheim
+*/
+
+#messages_viewport {
+    background-color: #ffffff;
+}
+
+#message_container {
+
+}
+
+#message_content_area {
+    margin: 25px;
+}
+
+#message_title {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#message_body {
+
+}
+
+#message_seperator {
+
+}
+
+#commands_box {
+
+}
+
+.even_message {
+
+}
+
+.shout {
+
+}
+
+.shoutcc {
+}
+
+#message_body.whisper {
+    /* font-style:italic; */
+}
+
+#message_body.whispercc {
+    /* font-style:italic; */
+}
+
+#num_connected_box {
+    margin-bottom: 5px;
+    color: #aaaaaa;
+}
+
+#connected_users_box {
+
+}
+
+#user_button {
+
+}
+
+#userlist_box {
+    margin: 10px;
+}

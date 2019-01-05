@@ -238,7 +238,7 @@ void message_display(const char* title, const char* body,
 
 	// apply the line-wrap settings to the body label
 	gtk_label_set_line_wrap (body_label, 1);
-	gtk_label_set_line_wrap_mode(body_label, PANGO_WRAP_CHAR);
+	gtk_label_set_line_wrap_mode(body_label, PANGO_WRAP_WORD);
 
 	// make both body and title selectable
 	gtk_label_set_selectable(title_label, 1);

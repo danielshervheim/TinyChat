@@ -103,7 +103,7 @@ void broadcast_user_list(struct user *user_list) {
 
 
 //
-// USER_DAEMON acts as a relay between the server process and the user's client (via socket)
+// USER_DAEMON acts as a relay between the server process and the user's client
 //
 void user_daemon(int write_to_server, int read_from_server, int socket_fd) {
     while (1) {

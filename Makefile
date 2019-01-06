@@ -4,7 +4,7 @@
 # github.com/danielshervheim
 #
 
-CXX = clang
+CXX = gcc
 CXXFLAGS = -Wall
 GUIFLAGS = `pkg-config --cflags --libs gtk+-3.0` -rdynamic
 

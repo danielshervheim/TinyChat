@@ -46,7 +46,7 @@ static void client_window_class_init (ClientWindowClass *class) {
 
 /* Initializes the ClientWindow instance. */
 static void client_window_init (ClientWindow *self) {
-
+	gtk_window_set_title(GTK_WINDOW(self), "TinyChat");
 
 	// add stack and in stack spawn two instances of loginPane and chatPane
 	// connect the needed signals from each

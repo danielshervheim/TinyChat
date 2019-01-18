@@ -6,7 +6,7 @@
 
 CXX = gcc
 LIBS = `pkg-config --cflags --libs gtk+-3.0` -rdynamic
-LIBDIRS = -I src
+LIBDIRS = -I src -I data/gresource/compiled
 CXXFLAGS = -Wall $(LIBDIRS) $(LIBS)
 BIN = tinychat
 

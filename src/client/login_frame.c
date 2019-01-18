@@ -6,6 +6,8 @@
 
 #include "login_frame.h"
 
+#include "client.h"
+
 struct _LoginFrame {
     GtkBin parent_instance;
     // member instances go here
@@ -36,8 +38,6 @@ static void login_frame_init (LoginFrame *self) {
 	GtkWidget *button = gtk_button_new();
 	gtk_button_set_image(GTK_BUTTON(button), gtk_image_new_from_resource("/tinychat/icons/icons8-enter-16.png"));
 	gtk_box_pack_start(GTK_BOX(box), button, 1, 1, 0);
-
-
 
 	gtk_container_add(GTK_CONTAINER(self), box);
 	gtk_widget_show_all(box);

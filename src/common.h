@@ -1,6 +1,18 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+
+
+
+#define MAX_PORT_LEN 5
+#define MAX_ADDRESS_LEN 1024
+#define MAX_USERNAME_LEN 16
+
+#define MAX_MESSAGE_LEN 256
+
+
+
+
 #define MAX_NAME_LEN 16
 #define MAX_MSG_LEN 256
 #define MAX_CONCURRENT_USERS 10

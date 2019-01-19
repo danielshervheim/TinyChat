@@ -1,63 +1,64 @@
-# Tiny-Chat
+# TinyChat
 
-**Tiny Chat** is a lightweight chat server and client, written in C.
+**TinyChat** is a lightweight chat server and client for unix, written in C.
 
-I made it for fun, as an exercise in network and GUI programming. **Tiny Chat** uses TCP sockets to connect client(s) to the server, and GTK to display the client GUI.
+I made it for fun, as an exercise in network and GUI programming. **TinyChat** uses TCP sockets to connect client(s) to a central server, and GTK to display the client GUI.
 
-![screenshots showing the login and chat interface windows](https://i.imgur.com/yeGxEm3.png)
+![login window](https://i.imgur.com/AmB7iDZ.png)
+
+![chat window](https://i.imgur.com/pJ1zfeE.png)
 
 ## Setup
 
 ### Dependencies
 
-**Tiny Chat** requires the following package be installed on the client machine(s):
+**TinyChat** requires the following package be installed:
 
-```
-libgtk-3-dev
-```
+- libgtk-3-dev
 
 ### Network Requirements
 
-The server machine must have a static IP address with a specific port forwarded to it from the router.
+The machine hosting the server must have a static IP address assigned, with an open port forwarded to that IP address.
 
 ### Compilation
 
 ```
-$ cd path/to/cloned/directory
-$ cd Tiny-Chat
+$ git clone https://github.com/danielshervheim/TinyChat
+$ cd TinyChat
 $ make
+$ sudo make install
 ```
 
 ## Use
 
 ### Starting the server
 
+(install first)
+
 ```
-$ cd path/to/cloned/directory
-$ cd Tiny-Chat
-$ ./build/tinychat_server.app <port>
+$ tinychat_server.app <port>
 ```
 
 ### Starting the client
 
+(install first)
+
 ```
-$ cd path/to/cloned/directory
-$ cd Tiny-Chat
-$ ./build/tinychat_client.app
+$ tinychat_client
 ```
+
+Additionally, the client can be started from the application launcher like any other Linux application.
 
 ### Login into the server
 
-**Server Address**: the public IP address of the host machine (i.e. the IP address of the router it is connected to). This must be known ahead of time.
+**Server Address**: The public IP address of the host machine (i.e. the IP address of the router it is connected to). This must be known ahead of time.
 
-**Port**: the port the host machine is running the server on. This must be known ahead of time.
+**Port**: The port that the host machine has forwarded to itself. This must be known ahead of time as well.
 
-**Username**: how you want to identify yourself to others in the chat.
+**Username**: How you want to identify yourself to others in the chat.
 
 ### Sending messages
 
-Messages prefixed with "@" followed by a username will be sent only to that user. e.g.
+The dropdown on the bottom left displays a list of all currently connected users. Selecting a users name from the list will send all your messages only to that user.
 
-`@john Hey John` will send "Hey John" to the user `john`alone.
-
-Otherwise, messages will be sent to all currently connected users by default.
+Selecting the top "Everyone" option will send your messages to all currently connected users. This is the default option.

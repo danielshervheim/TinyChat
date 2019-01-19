@@ -1,6 +1,11 @@
+//
+// Copyright © Daniel Shervheim, 2019
+// danielshervheim@gmail.com
+// www.github.com/danielshervheim
+//
+
 #ifndef COMMON_H_
 #define COMMON_H_
-
 
 // login defines
 #define MAX_PORT_LEN 5

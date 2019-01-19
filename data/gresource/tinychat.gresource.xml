@@ -1,17 +1,11 @@
+<!--
+Copyright © Daniel Shervheim, 2019
+danielshervheim@gmail.com
+www.github.com/danielshervheim
+-->
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-	<gresource prefix="/tinychat/icons">
-		<file>icons8-attach-16.png</file>
-		<file>icons8-enter-16.png</file>
-		<file>icons8-get-quote-16.png</file>
-		<file>icons8-group-16.png</file>
-		<file>icons8-more-16.png</file>
-		<file>icons8-quote-left-16.png</file>
-		<file>icons8-sent-16.png</file>
-		<file>icons8-user-16.png</file>
-	</gresource>
 	<gresource prefix="/tinychat/glade">
-		<!--<file>new_image_dialog.glade</file>-->
 		<file>login_frame.glade</file>
 		<file>chat_frame.glade</file>
 	</gresource>

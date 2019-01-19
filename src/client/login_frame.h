@@ -9,7 +9,6 @@
 
 #include <gtk/gtk.h>
 
-
 G_BEGIN_DECLS
 
 #define LOGIN_FRAME_TYPE_BIN (login_frame_get_type ())

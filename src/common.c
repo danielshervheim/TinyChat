@@ -1,11 +1,15 @@
+//
+// Copyright © Daniel Shervheim, 2019
+// danielshervheim@gmail.com
+// www.github.com/danielshervheim
+//
+
 #include "common.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-
 
 int is_valid_address(const char *address, int *err) {
 	if (strlen(address) <= 0) {

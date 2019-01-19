@@ -9,7 +9,6 @@
 
 #include <gtk/gtk.h>
 
-
 G_BEGIN_DECLS
 
 #define CLIENT_WINDOW_TYPE_WINDOW (client_window_get_type ())

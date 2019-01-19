@@ -10,30 +10,20 @@
 
 struct _ChatFrame {
     GtkBin parent_instance;
-    // member instances go here
-
-    GtkEntry *m_message_entry;
-
-    GtkLabel *m_character_counter;
-
-    GtkComboBoxText *m_userlist_comboBoxText;
 
     GtkBox *m_messageBox;
+    GtkComboBoxText *m_userlist_comboBoxText;
+    GtkEntry *m_message_entry;
+    GtkLabel *m_character_counter;
 };
 
 G_DEFINE_TYPE(ChatFrame, chat_frame, GTK_TYPE_BIN);
 
 
 
-
-
-
-
-
-
-
-
-GtkWidget* create_message_object(const char* title, const char* body,
+/* A utility function, returns a GtkWidget representing the passed in message
+parameters, ready to be displayed. */
+GtkWidget* message_display_new(const char* title, const char* body,
     GtkAlign halign, const char* title_class, const char* body_class) {
 
     // messages have the format:
@@ -82,31 +72,69 @@ GtkWidget* create_message_object(const char* title, const char* body,
 
 
 
+/* Adds a message received from another user to the ChatFrame. */
+void chat_frame_add_message(ChatFrame *self, const char *sender, const char *message) {
+    char title[BUFFER_SIZE];
+    memset(title, '\0', BUFFER_SIZE);
+    sprintf(title, "%s said", sender);
 
-
-void add_sent_message(ChatFrame *self, const char *message) {
-    GtkWidget *messageObj = create_message_object("you said", message, GTK_ALIGN_END, "broadcast", "broadcast");
+    GtkWidget *messageObj = message_display_new(title, message, GTK_ALIGN_START,
+        "broadcast", "broadcast");
 
     gtk_box_pack_start(self->m_messageBox, messageObj, 0, 0, 0);
     gtk_widget_show_all(messageObj);
 }
 
+
+
+/* Adds a message you sent to the ChatFrame. */
+void add_sent_message(ChatFrame *self, const char *message) {
+    GtkWidget *messageObj = message_display_new("you said", message, GTK_ALIGN_END,
+    "broadcast", "broadcast");
+
+    gtk_box_pack_start(self->m_messageBox, messageObj, 0, 0, 0);
+    gtk_widget_show_all(messageObj);
+}
+
+
+
+/* Adds a private message received from another user to the ChatFrame. */
 void add_sent_private_message(ChatFrame *self, const char *recipient, const char *message) {
     char title[BUFFER_SIZE];
     memset(title, '\0', BUFFER_SIZE);
     sprintf(title, "you whispered to %s", recipient);
 
-    GtkWidget *messageObj = create_message_object(title, message, GTK_ALIGN_END, "broadcast", "broadcast");
+    GtkWidget *messageObj = message_display_new(title, message, GTK_ALIGN_END,
+        "broadcast", "broadcast");
 
     gtk_box_pack_start(self->m_messageBox, messageObj, 0, 0, 0);
     gtk_widget_show_all(messageObj);
 }
 
 
+
+/* Adds a private message you sent to the ChatFrame. */
+void chat_frame_add_private_message(ChatFrame *self, const char *sender, const char *message) {
+    char title[BUFFER_SIZE];
+    memset(title, '\0', BUFFER_SIZE);
+    sprintf(title, "%s whispered to you", sender);
+
+    GtkWidget *messageObj = message_display_new(title, message, GTK_ALIGN_START,
+        "whisper", "whisper");
+
+    gtk_box_pack_start(self->m_messageBox, messageObj, 0, 0, 0);
+    gtk_widget_show_all(messageObj);
+}
+
+
+
+/* Fires when the user intends to send a message from the ChatFrame. Specifically
+when the send button is pressed or the enter key is hit in the message entry. */
 void on_send_intent(ChatFrame *self) {
     const gchar *recipient = gtk_combo_box_text_get_active_text(self->m_userlist_comboBoxText);
     const gchar *message = gtk_entry_get_text(self->m_message_entry);
 
+    // Parses the recipient and fires the appropriate signal.
     if (strcmp(recipient, "Everyone") == 0) {
         g_signal_emit_by_name(self, "send-message-intent", message);
         add_sent_message(self, message);
@@ -116,17 +144,19 @@ void on_send_intent(ChatFrame *self) {
         add_sent_private_message(self, recipient, message);
     }
 
+    // Resets the message entry to blank.
     gtk_entry_set_text(self->m_message_entry, "");
 }
 
-
+/* Fires when the message entry is changed, to verify that users aren't starting
+a message with the "/" character, which is reserved for the server to pass commands. */
 void on_message_entry_changed(ChatFrame *self) {
     const gchar *text = gtk_entry_get_text(self->m_message_entry);
-    int text_len = strlen(text);
 
+    /* displays an error dialog and clears the message entry if it starts with
+    a reserved character. */
     if (memcmp(text, "/", strlen("/")) == 0) {
         gtk_entry_set_text(self->m_message_entry, "");
-        text_len = 0;
 
         GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(
             gtk_widget_get_toplevel(GTK_WIDGET(self))),
@@ -137,6 +167,8 @@ void on_message_entry_changed(ChatFrame *self) {
         gtk_widget_destroy(GTK_WIDGET(dia));
     }
 
+    // updates the character counter based on the message entry length.
+    int text_len = strlen(gtk_entry_get_text(self->m_message_entry));
     char tmp[MAX_MESSAGE_LEN];
     memset(tmp, '\0', MAX_MESSAGE_LEN);
     sprintf(tmp, "%d", MAX_MESSAGE_LEN - text_len);
@@ -145,86 +177,28 @@ void on_message_entry_changed(ChatFrame *self) {
 
 
 
-
-
-void chat_frame_userlist_updated(ChatFrame *self, const char *userlist) {
-    // clear userlist
+/* Clears the userlist combobox and repopulates it based on the updated
+userlist string. */
+void chat_frame_update_userlist(ChatFrame *self, const char *userlist) {
+    // clear the combo box.
     gtk_combo_box_text_remove_all(self->m_userlist_comboBoxText);
+
+    // append the "Everyone" recipient and set it as default.
     gtk_combo_box_text_append(self->m_userlist_comboBoxText, NULL, "Everyone");
     gtk_combo_box_set_active(GTK_COMBO_BOX(self->m_userlist_comboBoxText), 0);
 
+    // make a copy of the userlist to tokenize.
     char tmp_userlist[BUFFER_SIZE];
     memset(tmp_userlist, '\0', BUFFER_SIZE);
     strcpy(tmp_userlist, userlist);
 
+    // add each token back to the userlist combo box.
     char *token = strtok(tmp_userlist, " ");
-
     while (token != NULL) {
     	gtk_combo_box_text_append(self->m_userlist_comboBoxText, NULL, token);
     	token = strtok(NULL, " ");
     }
 }
-
-
-/*
-void chat_frame_set_initial_userlist(ChatFrame *self, const char *userlist) {
-    char tmp_userlist[BUFFER_SIZE];
-    memset(tmp_userlist, '\0', BUFFER_SIZE);
-    strcpy(tmp_userlist, userlist);
-
-    char *token = strtok(tmp_userlist, " ");
-
-    while (token != NULL) {
-    	gtk_combo_box_text_append(self->m_userlist_comboBoxText, NULL, token);
-    	token = strtok(NULL, " ");
-    }
-}
-*/
-
-
-
-
-
-
-
-
-
-
-
-void chat_frame_add_message(ChatFrame *self, const char *sender, const char *message) {
-    char title[BUFFER_SIZE];
-    memset(title, '\0', BUFFER_SIZE);
-    sprintf(title, "%s said", sender);
-
-    GtkWidget *messageObj = create_message_object(title, message, GTK_ALIGN_START, "broadcast", "broadcast");
-
-    gtk_box_pack_start(self->m_messageBox, messageObj, 0, 0, 0);
-    gtk_widget_show_all(messageObj);
-}
-
-void chat_frame_add_private_message(ChatFrame *self, const char *sender, const char *message) {
-    char title[BUFFER_SIZE];
-    memset(title, '\0', BUFFER_SIZE);
-    sprintf(title, "%s whispered to you", sender);
-
-    GtkWidget *messageObj = create_message_object(title, message, GTK_ALIGN_START, "whisper", "whisper");
-
-    gtk_box_pack_start(self->m_messageBox, messageObj, 0, 0, 0);
-    gtk_widget_show_all(messageObj);
-}
-
-
-
-
-
-
-
-void chat_frame_reset(ChatFrame *self) {
-    gtk_container_foreach(GTK_CONTAINER(self->m_messageBox), (GtkCallback)gtk_widget_destroy, NULL);
-    gtk_entry_set_text(self->m_message_entry, "");
-}
-
-
 
 
 
@@ -233,58 +207,71 @@ ChatFrame* chat_frame_new () {
     return g_object_new (CHAT_FRAME_TYPE_BIN, NULL);
 }
 
+
+
+/* Resets the ChatFrame instance. */
+void chat_frame_reset(ChatFrame *self) {
+    // delete all previously displayed messages.
+    gtk_container_foreach(GTK_CONTAINER(self->m_messageBox), (GtkCallback)gtk_widget_destroy, NULL);
+
+    // reset the message entry.
+    gtk_entry_set_text(self->m_message_entry, "");
+}
+
+
+
 /* Initializes the ChatFrame class */
 static void chat_frame_class_init (ChatFrameClass *class) {
     /* Fires when the user intends to send a message */
     g_signal_new("send-message-intent", CHAT_FRAME_TYPE_BIN, G_SIGNAL_RUN_FIRST,
-      0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
+        0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 
+    /* Fires when the user intends to send a message */
     g_signal_new("send-private-message-intent", CHAT_FRAME_TYPE_BIN, G_SIGNAL_RUN_FIRST,
         0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER, G_TYPE_POINTER);
 }
 
+
+
 /* Initializes the ChatFrame instance. */
 static void chat_frame_init (ChatFrame *self) {
-    // get a reference to the builder
+    // get a reference to the builder.
     GtkBuilder *builder = gtk_builder_new_from_resource("/tinychat/glade/chat_frame.glade");
 
-    // get the main container from the builder and add it to the window
-    GtkWidget *content = GTK_WIDGET(gtk_builder_get_object(builder, "chat_box"));
-    gtk_container_add(GTK_CONTAINER(self), content);
-
-
-
-    // get references to the message box and set its max length
-    self->m_message_entry = GTK_ENTRY(gtk_builder_get_object(builder, "message_entry"));
-    gtk_entry_set_max_length(self->m_message_entry, MAX_MESSAGE_LEN);
-
-    // get reference to send button and set its image
-    GtkButton *sendButton = GTK_BUTTON(gtk_builder_get_object(builder, "send_button"));
-    gtk_button_set_image(sendButton,
-        gtk_image_new_from_resource("/tinychat/icons/icons8-sent-16.png"));
-
-    // connect the send-message-intent signal handlers
-    g_signal_connect_swapped(self->m_message_entry, "activate", (GCallback)on_send_intent, self);
-    g_signal_connect_swapped(sendButton, "clicked", (GCallback)on_send_intent, self);
-
-    // connect references for input verification
-    g_signal_connect_swapped(self->m_message_entry, "changed", (GCallback)on_message_entry_changed, self);
-
-    // get references to and connect the character counter
-    self->m_character_counter = GTK_LABEL(gtk_builder_get_object(builder, "char_counter_label"));
-
-    // todo: userlist
-    self->m_userlist_comboBoxText = GTK_COMBO_BOX_TEXT(gtk_combo_box_text_new());
-    gtk_widget_set_tooltip_text(GTK_WIDGET(self->m_userlist_comboBoxText), "Message Recipient(s)");
-    gtk_box_pack_start(GTK_BOX(gtk_builder_get_object(builder, "commands_box")), GTK_WIDGET(self->m_userlist_comboBoxText), 0, 1, 0);
-    gtk_box_reorder_child(GTK_BOX(gtk_builder_get_object(builder, "commands_box")), GTK_WIDGET(self->m_userlist_comboBoxText), 0);
-
-
-
-
-    // get references to message box
+    // get references to message box.
     self->m_messageBox = GTK_BOX(gtk_builder_get_object(builder, "messages_box"));
 
+    // get a reference to the commandsBox area.
+    GtkBox *commandsBox = GTK_BOX(gtk_builder_get_object(builder, "commands_box"));
 
+    // set the userlist combo box to a new GtkComboBoxText instance, set its properties.
+    self->m_userlist_comboBoxText = GTK_COMBO_BOX_TEXT(gtk_combo_box_text_new());
+    gtk_widget_set_tooltip_text(GTK_WIDGET(self->m_userlist_comboBoxText), "Message Recipient(s)");
+
+    // pack the userlist box into the commands box and set it to be on the far left.
+    gtk_box_pack_start(commandsBox, GTK_WIDGET(self->m_userlist_comboBoxText), 0, 1, 0);
+    gtk_box_reorder_child(commandsBox, GTK_WIDGET(self->m_userlist_comboBoxText), 0);
+
+    // get the message entry, set its properties, and handlers.
+    self->m_message_entry = GTK_ENTRY(gtk_builder_get_object(builder, "message_entry"));
+    gtk_entry_set_max_length(self->m_message_entry, MAX_MESSAGE_LEN);
+    g_signal_connect_swapped(self->m_message_entry, "activate",
+        (GCallback)on_send_intent, self);
+    g_signal_connect_swapped(self->m_message_entry, "changed",
+        (GCallback)on_message_entry_changed, self);
+
+    // get the character counter.
+    self->m_character_counter = GTK_LABEL(gtk_builder_get_object(builder, "char_counter_label"));
+
+    // get the send button, and set its signals.
+    GtkButton *sendButton = GTK_BUTTON(gtk_builder_get_object(builder, "send_button"));
+    g_signal_connect_swapped(sendButton, "clicked", (GCallback)on_send_intent, self);
+
+    // get the main container from the builder and add it to the ChatFrame.
+    GtkWidget *content = GTK_WIDGET(gtk_builder_get_object(builder, "chat_box"));
+    gtk_container_add(GTK_CONTAINER(self), content);
     gtk_widget_show_all(content);
+
+    // and finally, uunref the builder.
+	g_object_unref(builder);
 }

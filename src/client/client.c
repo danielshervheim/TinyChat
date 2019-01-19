@@ -20,44 +20,33 @@
 #include <string.h>
 #include <unistd.h>
 
-
-
 struct _Client {
     GObject parent_instance;
-    // member instances go here
-    char m_username[MAX_USERNAME_LEN];
-    char *m_userlist;
+
     int m_socketFd;
+    char *m_username;
+    char *m_userlist;
 };
 
 G_DEFINE_TYPE(Client, client, G_TYPE_OBJECT);
 
 
 
-
-
-
-
-
-
-
-
-
 /* sets up the initial user list */
-void userlist_setup(Client *self, const char* buffer) {
+void userlist_update(Client *self, const char* buffer) {
     // buffer is of form "<username1> <username2> ... <usernamei>"
 
-    // retokenize to remove your own username from the list
-
+    // clear the userlist, just to be safe.
     memset(self->m_userlist, '\0', sizeof(char) * BUFFER_SIZE);
 
+    // Make a copy of the buffer, to retokenize.
     char tmp_buffer[BUFFER_SIZE];
     memset(tmp_buffer, '\0', BUFFER_SIZE);
     strcpy(tmp_buffer, buffer);
 
-
+    /* retokenize the buffer to remove your own username from the list, since
+    you shouldn't be able to PM yourself. */
     char *token = strtok(tmp_buffer, " ");
-
     while (token != NULL) {
         if (strcmp(token, self->m_username) != 0) {
             strcat(self->m_userlist, token);
@@ -66,21 +55,15 @@ void userlist_setup(Client *self, const char* buffer) {
         token = strtok(NULL, " ");
     }
 
-    // strcpy(self->m_userlist, buffer);
+    // Signal that the userlist has been updated.
     g_signal_emit_by_name(self, "userlist-updated", self->m_userlist);
 }
 
 
 
-
-
-
-
-
-
-
+/* Parses the incoming whisper and signals that a new private message has arrived. */
 void message_parse_whisper(Client *self, const char *buffer) {
-    // buf is of format "<sender> <message>"
+    // buffer is of format "<sender> <message>"
 
     // strtok modifies string, so we first make a copy
     char tmp[BUFFER_SIZE];
@@ -95,9 +78,9 @@ void message_parse_whisper(Client *self, const char *buffer) {
 
 
 
-
+/* Parses the incoming broadcast and signals that a new message has arrived. */
 void message_parse_broadcast(Client *self, const char *buffer) {
-    // buf is of format "<sender> <message>"
+    // buffer is of format "<sender> <message>"
 
     // strtok modifies string, so we first make a copy
     char tmp[BUFFER_SIZE];
@@ -112,28 +95,24 @@ void message_parse_broadcast(Client *self, const char *buffer) {
 
 
 
-
-
-
-
-
-
+/* Polls the server for new messages to read and handles them appropriatly. */
 int server_poll(Client *self) {
-    // if the connection was closed between polls, then quit polling
+    // if the connection was closed between polls, then quit polling.
     if (self->m_socketFd == -1) {
         return 0;
     }
 
+    // tepmorary buffer to hold a potential new message.
     char tmp[BUFFER_SIZE];
     memset(tmp, '\0', BUFFER_SIZE);
     ssize_t nread;
 
+    // read from the socket.
     if ((nread = read(self->m_socketFd, tmp, BUFFER_SIZE)) != -1) {
+        // if nread == 0, then the socket was closed from the other end.
         if (nread == 0) {
             g_signal_emit_by_name(self, "connection-lost");
-
-            // call logout here?
-            return 0;
+            return 0;  // return 0 to quit polling.
         }
         else {
             if (memcmp(tmp, "/whispered", strlen("/whispered")) == 0) {
@@ -143,62 +122,76 @@ int server_poll(Client *self) {
 				message_parse_broadcast(self, tmp + strlen("/broadcasted") + 1);
 			}
             else if (memcmp(tmp, "/userlist", strlen("/userlist")) == 0) {
-                userlist_setup(self, tmp + strlen("/userlist") + 1);
+                userlist_update(self, tmp + strlen("/userlist") + 1);
 			}
         }
     }
 
+    // Otherwise, keep polling.
     return 1;
 }
 
 
 
-
-
-
-
-
-
-// returns 1 on success, 0 on failure
+/* Attempts to connect to the server. */
 int client_connect(Client *self, const char *port, const char *address, int *err) {
     struct addrinfo *address_info;
 
+    // verifies that the address and port combo are valid.
     if (getaddrinfo(address, port, NULL, &address_info) < 0) {
 		perror("getaddrinfo() failed");
         *err = -1;
 		return 0;
 	}
 
+    // attempts to create an open socket on the system.
     if ((self->m_socketFd = socket(address_info->ai_family, address_info->ai_socktype, address_info->ai_protocol)) < 0) {
 		perror("socket() failed");
         *err = -2;
 		return 0;
 	}
 
+    // attempts to connect to the server via socket.
     if (connect(self->m_socketFd, address_info->ai_addr, address_info->ai_addrlen) < 0) {
 		perror("connect() failed");
         *err = -3;
 		return 0;
 	}
 
+    // make space for the userlist string and clear it.
     self->m_userlist = malloc(sizeof(char) * BUFFER_SIZE);
     memset(self->m_userlist, '\0', sizeof(char) * BUFFER_SIZE);
-    return 1;  // success
+
+    // return success.
+    return 1;
 }
 
+
+
+/* Closes the socket and frees the memory, essentially resetting the Client. */
 void client_disconnect(Client *self) {
+    // close the socket, if its still open.
     if (self->m_socketFd != -1) {
         close(self->m_socketFd);
-        self->m_socketFd = -1;        
+        self->m_socketFd = -1;
     }
 
+    // free the username memory, if its not been freed yet.
+    if (self->m_username != NULL) {
+        free(self->m_username);
+        self->m_username = NULL;
+    }
+
+    // free the userlist memory, if its not been freed yet.
     if (self->m_userlist != NULL) {
         free(self->m_userlist);
         self->m_userlist = NULL;
     }
 }
 
-// returns 1 on success, 0 on failure
+
+
+/* Attempts to login to the server. */
 int client_login(Client *self, const char *username, int *err) {
     char tmp[BUFFER_SIZE];
     memset(tmp, '\0', BUFFER_SIZE);
@@ -230,10 +223,15 @@ int client_login(Client *self, const char *username, int *err) {
 			return 0;
 		}
 
-        memset(self->m_username, '\0', MAX_USERNAME_LEN);
+        // make space for the username string and fill it.
+        self->m_username = malloc(sizeof(char) * MAX_USERNAME_LEN);
+        memset(self->m_username, '\0', sizeof(char) * MAX_USERNAME_LEN);
         strcpy(self->m_username, username);
+
+        // install the polling function to run every few hundred ms.
         g_timeout_add(MILLI_SLEEP_DUR, (void *)server_poll, self);
 
+        // return success.
         return 1;
     }
     else if (memcmp(tmp, "/joinresponse username_taken", strlen("/joinresponse username_taken")) == 0) {
@@ -254,19 +252,14 @@ int client_login(Client *self, const char *username, int *err) {
 
 
 
-
-
-
-
-
-
-
-// returns 1 on success, 0 on failure
+/* Sends the message to all connected users. */
 int client_send_broadcast(Client *self, const char *message) {
+    // formats the message so the server can parse it.
     char outgoing[BUFFER_SIZE];
     memset(outgoing, '\0', BUFFER_SIZE);
     sprintf(outgoing, "/broadcast %s", message);
 
+    // writes it to the server.
     if (write(self->m_socketFd, outgoing, strlen(outgoing)) < 0) {
         printf("\'write\' failed during broadcast\n");
         return 0;
@@ -275,12 +268,16 @@ int client_send_broadcast(Client *self, const char *message) {
     return 1;
 }
 
-// returns 1 on success, 0 on unspecified error, -1 on recipient not connected
+
+
+/* Sends the message to the recipient. */
 int client_send_private_message(Client *self, const char *recipient, const char *message) {
+    // formats the message so the server can parse it.
     char outgoing[BUFFER_SIZE];
     memset(outgoing, '\0', BUFFER_SIZE);
     sprintf(outgoing, "/whisper %s %s", recipient, message);
 
+    // writes it to the server.
     if (write(self->m_socketFd, outgoing, strlen(outgoing)) < 0) {
         printf("\'write\' failed during whisper\n");
         return 0;
@@ -291,31 +288,15 @@ int client_send_private_message(Client *self, const char *recipient, const char 
 
 
 
-
-
-
-
-
-
-
-
 /* Returns a new instance of Client. */
 Client* client_new () {
     return g_object_new (CLIENT_TYPE_OBJECT, NULL);
 }
 
-/* Destroys the instance. */
-void client_destroy(Client *self) {
-    // todo: destroy client here
-}
+
 
 /* Initializes the Client class */
 static void client_class_init (ClientClass *class) {
-    // tmp
-    printf("client class init\n");
-
-    // installing signals
-
     /* Fires on the client instance when a new message is received. */
     g_signal_new("message-received", CLIENT_TYPE_OBJECT, G_SIGNAL_RUN_FIRST,
     	0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER, G_TYPE_POINTER);
@@ -324,7 +305,7 @@ static void client_class_init (ClientClass *class) {
     g_signal_new("private-message-received", CLIENT_TYPE_OBJECT, G_SIGNAL_RUN_FIRST,
     	0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER, G_TYPE_POINTER);
 
-    /* Fires on the client instance when a user has left the chat. */
+    /* Fires on the client instance when a user has joined or left the chat. */
     g_signal_new("userlist-updated", CLIENT_TYPE_OBJECT, G_SIGNAL_RUN_FIRST,
     	0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 
@@ -333,13 +314,12 @@ static void client_class_init (ClientClass *class) {
     	0, NULL, NULL, NULL, G_TYPE_NONE, 0);
 }
 
+
+
 /* Initializes the Client instance. */
 static void client_init (Client *self) {
-	printf("client init\n");
-
-	memset(self->m_username, '\0', MAX_USERNAME_LEN);
-
-    self->m_userlist = NULL;
-
+    // nullify the parameters initially.
 	self->m_socketFd = -1;
+    self->m_username = NULL;
+    self->m_userlist = NULL;
 }

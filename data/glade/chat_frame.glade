@@ -48,6 +48,7 @@
         <property name="spacing">15</property>
         <child>
           <object class="GtkButton" id="send_button">
+            <property name="label" translatable="yes">↩</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>

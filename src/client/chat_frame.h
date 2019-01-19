@@ -11,7 +11,6 @@
 
 #include "common.h"
 
-
 G_BEGIN_DECLS
 
 #define CHAT_FRAME_TYPE_BIN (chat_frame_get_type ())
@@ -20,16 +19,18 @@ G_DECLARE_FINAL_TYPE(ChatFrame, chat_frame, CHAT_FRAME, BIN, GtkBin)
 /* Returns a new ChatFrame instance. */
 ChatFrame* chat_frame_new(void);
 
-void chat_frame_userlist_updated(ChatFrame *self, const char *userlist);
-
-void chat_frame_add_message(ChatFrame *self, const char *sender, const char *message);
-
-void chat_frame_add_private_message(ChatFrame *self, const char *sender, const char *message);
-
+/* Resets the ChatFrame to a like new state - erases all the previously
+displayed messages, clears the userlist, etc */
 void chat_frame_reset(ChatFrame *self);
 
-// clear_chat_frame
-//
+/* Updates the list of users available to send messages to. */
+void chat_frame_update_userlist(ChatFrame *self, const char *userlist);
+
+/* Adds a message (received from Client) to the ChatFrame and displays it. */
+void chat_frame_add_message(ChatFrame *self, const char *sender, const char *message);
+
+/* Adds a private message (received from Client) to the ChatFrame and displays it. */
+void chat_frame_add_private_message(ChatFrame *self, const char *sender, const char *message);
 
 G_END_DECLS
 

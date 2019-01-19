@@ -7,6 +7,7 @@
 #include "login_frame.h"
 
 #include "client.h"
+#include "common.h"
 
 struct _LoginFrame {
     GtkBin parent_instance;
@@ -60,6 +61,10 @@ static void login_frame_init (LoginFrame *self) {
 	self->m_address = GTK_ENTRY(gtk_builder_get_object(builder, "address_entry"));
 	self->m_port = GTK_ENTRY(gtk_builder_get_object(builder, "port_entry"));
 	self->m_username = GTK_ENTRY(gtk_builder_get_object(builder, "username_entry"));
+
+	// set the correct entry parameters
+	gtk_entry_set_max_length(self->m_port, 5);
+	gtk_entry_set_max_length(self->m_username, MAX_USERNAME_LEN);
 	
 	// get the login button reference and set its icon
 	GtkWidget *connectButton = GTK_WIDGET(gtk_builder_get_object(builder, "connect_button"));

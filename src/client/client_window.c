@@ -53,8 +53,8 @@ void on_clientConnectionLost(ClientWindow *self) {
     gtk_stack_set_visible_child(self->m_stack, GTK_WIDGET(self->m_login_frame));
 
     // delete the current chat_window instance
-    gtk_widget_destroy(GTK_WIDGET(self->m_chat_frame));
-    self->m_chat_frame = NULL;
+    // gtk_widget_destroy(GTK_WIDGET(self->m_chat_frame));
+    // self->m_chat_frame = NULL;
 
     // spawn error message
     GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
@@ -179,12 +179,21 @@ void on_loginFrameConnectIntent(ClientWindow *self, const char *address, const c
     }
 
     // todo: create a new chat frame instance, and set the initally connected users
-    self->m_chat_frame = chat_frame_new();
-    // chat_frame_set_initial_userlist(self->m_chat_frame, client->m_userlist); ????? 
+    // chat_frame_reset(self->m_chat_frame, client->m_userlist); ????? 
 
     // switch to the new chat frame
     gtk_stack_set_visible_child(self->m_stack, GTK_WIDGET(self->m_chat_frame));
 }
+
+
+
+void on_chatFrameSendMessageIntent(ClientWindow *self, const char *text) {
+    printf("%s\n", text);
+}
+
+
+
+
 
 
 
@@ -213,6 +222,7 @@ static void client_window_init (ClientWindow *self) {
 
     // setup the login frame
     self->m_login_frame = login_frame_new();
+    self->m_chat_frame = chat_frame_new();
 
     // add the frames to the stack and set the login one as initial
     gtk_stack_add_named(self->m_stack, GTK_WIDGET(self->m_login_frame), "login_frame");
@@ -235,4 +245,7 @@ static void client_window_init (ClientWindow *self) {
 
     // in press login button callback, connect and login to client
     g_signal_connect_swapped(self->m_login_frame, "connect-intent", (GCallback)on_loginFrameConnectIntent, self);
+
+    // connect chat frame signals
+    g_signal_connect_swapped(self->m_chat_frame, "send-message-intent", (GCallback)on_chatFrameSendMessageIntent, self);
 }

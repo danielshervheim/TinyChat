@@ -69,14 +69,13 @@ install: install_server install_client
 
 install_server: $(BIN)_server
 	cp build/$(BIN)_server /usr/bin/
-	cp data/desktop/tinychat_server.desktop /usr/share/applications/
-	
+
 install_client: $(BIN)_client
 	cp build/$(BIN)_client /usr/bin/
-	cp data/desktop/tinychat_client.desktop /usr/share/applications/
+	cp data/desktop/com.danielshervheim.tinychat.desktop /usr/share/applications/
 
 
-	
+
 
 # UNINSTALLATION rules
 # removes the executables and .desktop files from their respective
@@ -87,7 +86,6 @@ uninstall: uninstall_server uninstall_client
 
 uninstall_server:
 	rm -rf /usr/bin/$(BIN)_server
-	rm -rf /usr/share/applications/tinychat_server.desktop
 
 uninstall_client:
 	rm -rf /usr/bin/$(BIN)_client

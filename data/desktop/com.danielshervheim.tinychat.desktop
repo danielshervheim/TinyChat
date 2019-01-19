@@ -4,5 +4,4 @@ Version=1.0
 Type=Application
 Terminal=false
 Exec=/usr/bin/tinychat_client
-Name=TinyChat Client
-Name[en_US]=tinychat_client.desktop
+Name=TinyChat

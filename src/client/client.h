@@ -1,5 +1,3 @@
-// no gui code here, only client-server connection logic
-
 //
 // Copyright © Daniel Shervheim, 2018-2019
 // danielshervheim@gmail.com
@@ -23,12 +21,14 @@ Client* client_new(void);
 void client_destroy(Client *self);
 
 // returns 1 on success, 0 on failure
-int client_connect(Client *self, const char *port, const char *address);
+// (err: -1 getaddrinfo, -2 socket, -3 connect)
+int client_connect(Client *self, const char *port, const char *address, int *err);
 
 void client_disconnect(Client *self);
 
-// returns 1 on success, 0 on unspecified error, -1 on username taken, -2 on server full
-int client_login(Client *self, const char *username);
+// returns 1 on success, 0 on failure
+// (err: -1 username taken, -2 server full, -3 unspecified)
+int client_login(Client *self, const char *username, int *err);
 
 // returns 1 on success, 0 on failure
 int client_send_broadcast(Client *self, const char *message);
@@ -48,7 +48,7 @@ user-left (Client *self, const char *username)
 
 user-joined (Client *self, const char *username)
 
-user-list-updated (Client *self, const char **users)
+userlist-updated (Client *self, const char **users, int numusers)
 
 connection-lost (Client *self)
 */

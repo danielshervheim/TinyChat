@@ -18,6 +18,9 @@ G_DECLARE_FINAL_TYPE(ChatFrame, chat_frame, CHAT_FRAME, BIN, GtkBin)
 /* Returns a new ChatFrame instance. */
 ChatFrame* chat_frame_new(void);
 
+// clear_chat_frame
+//
+
 G_END_DECLS
 
 #endif  // CHAT_FRAME_H_

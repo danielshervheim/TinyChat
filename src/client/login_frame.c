@@ -24,6 +24,12 @@ LoginFrame* login_frame_new () {
 /* Initializes the LoginFrame class */
 static void login_frame_class_init (LoginFrameClass *class) {
     // GObject property stuff would go here...
+
+
+// on button press, fires signal "login-button-pressed" and passes address, port, and username
+// !!!!!!!!!!!!!!!!!
+
+
 }
 
 /* Initializes the LoginFrame instance. */

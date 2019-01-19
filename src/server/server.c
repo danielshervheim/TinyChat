@@ -28,7 +28,7 @@
 
 // the user struct
 struct user {
-    char username[MAX_NAME_LEN];
+    char username[MAX_USERNAME_LEN];
     int write_to_child;
     int read_from_child;
     int taken;
@@ -81,7 +81,7 @@ int user_list_get_index_by_username(struct user *user_list, char *username) {
 // send the userlist to all currently connected users
 void broadcast_user_list(struct user *user_list) {
     // generate the userlist...
-    char tmp[BUF_SIZE];
+    char tmp[BUFFER_SIZE];
     strcpy(tmp, "/userlist");
     for (int i = 0; i < MAX_CONCURRENT_USERS; i++) {
         if (user_list[i].taken == 1) {
@@ -102,17 +102,51 @@ void broadcast_user_list(struct user *user_list) {
 
 
 
+// sends the user who left to all current users
+void notify_user_left(struct user *user_list, const char *username) {
+    char msg[BUFFER_SIZE];
+    memset(msg, '\0', BUFFER_SIZE);
+    sprintf(msg, "/left %s", username);
+
+    for (int i = 0; i < MAX_CONCURRENT_USERS; i++) {
+        if (user_list[i].taken == 1) {
+            if (write(user_list[i].write_to_child, msg, strlen(msg)) < 0) {
+               perror("write() failed in notify_user_left()");
+            }
+        }
+    }
+}
+
+
+
+// sends the user who joined to all current users
+void notify_user_joined(struct user *user_list, const char *username) {
+    char msg[BUFFER_SIZE];
+    memset(msg, '\0', BUFFER_SIZE);
+    sprintf(msg, "/joined %s", username);
+
+    for (int i = 0; i < MAX_CONCURRENT_USERS; i++) {
+        if (user_list[i].taken == 1 && strcmp(username, user_list[i].username) != 0) {
+            if (write(user_list[i].write_to_child, msg, strlen(msg)) < 0) {
+               perror("write() failed in notify_user_joined()");
+            }
+        }
+    }
+}
+
+
+
 //
 // USER_DAEMON acts as a relay between the server process and the user's client
 //
 void user_daemon(int write_to_server, int read_from_server, int socket_fd) {
     while (1) {
-        char server_buf[BUF_SIZE];
-        memset(server_buf, '\0', BUF_SIZE);
+        char server_buf[BUFFER_SIZE];
+        memset(server_buf, '\0', BUFFER_SIZE);
         ssize_t server_nread;
 
         // if there is data to read from the server
-        if ((server_nread = read(read_from_server, server_buf, BUF_SIZE)) != -1) {
+        if ((server_nread = read(read_from_server, server_buf, BUFFER_SIZE)) != -1) {
             if (server_nread == 0) {
             	// the connection to the server was lost
                 close(write_to_server);
@@ -125,12 +159,12 @@ void user_daemon(int write_to_server, int read_from_server, int socket_fd) {
             }
         }
 
-        char client_buf[BUF_SIZE];
-        memset(client_buf, '\0', BUF_SIZE);
+        char client_buf[BUFFER_SIZE];
+        memset(client_buf, '\0', BUFFER_SIZE);
         ssize_t client_nread;
 
         // if there is data to read from the socket
-        if ((client_nread = read(socket_fd, client_buf, BUF_SIZE)) != -1) {
+        if ((client_nread = read(socket_fd, client_buf, BUFFER_SIZE)) != -1) {
             if (client_nread == 0) {
             	// the connection to the client was lost
                 close(write_to_server);
@@ -169,7 +203,7 @@ int main(int argc, char* argv[]) {
 
     // initialize the socket
     // note: socket needs to be non-blocking as we "accept" new connections every iteration
-    int sock_fd; 
+    int sock_fd;
     if ((sock_fd = socket(PF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
         perror("socket() failed");
         exit(-1);
@@ -211,14 +245,14 @@ int main(int argc, char* argv[]) {
 
         // a user is trying to connect
         if ((incoming_fd = accept(sock_fd, NULL, NULL)) != -1) {
-            
+
         	// temporary buffer to hold handshake information
-            char handshake_buf[BUF_SIZE];
-            memset(handshake_buf, '\0', BUF_SIZE);
+            char handshake_buf[BUFFER_SIZE];
+            memset(handshake_buf, '\0', BUFFER_SIZE);
             ssize_t handshake_nread;
 
             // wait for handshake from user
-            if ((handshake_nread = read(incoming_fd, handshake_buf, BUF_SIZE)) <= 0) {
+            if ((handshake_nread = read(incoming_fd, handshake_buf, BUFFER_SIZE)) <= 0) {
                 perror("read() failed");
                 close(incoming_fd);
             }
@@ -289,14 +323,24 @@ int main(int argc, char* argv[]) {
                         user_list[index_to_add].read_from_child = child_to_server[0];
                         user_list[index_to_add].taken = 1;
 
+                        char resp[BUFFER_SIZE];
+                        memset(resp, '\0', BUFFER_SIZE);
+                        sprintf(resp, "/joinresponse ok");
+
+                        for (int i = 0; i < MAX_CONCURRENT_USERS; i++) {
+                            if (user_list[i].taken == 1) {
+                                strcat(resp, " ");
+                                strcat(resp, user_list[i].username);
+                            }
+                        }
+
                         // notify the user that they are connected succesfully
-                        if (write(incoming_fd, "/joinresponse ok", strlen("/joinresponse ok")) < 0) {
+                        if (write(incoming_fd, resp, strlen(resp)) < 0) {
                         	perror("write() failed while responding to join request");
                         	user_list_remove_user(user_list, index_to_add);
                         }
                         else {
-                        	// notify all users that userlist has changed
-                        	broadcast_user_list(user_list);
+                        	notify_user_joined(user_list, username);
                         }
                     }
                 }
@@ -306,26 +350,29 @@ int main(int argc, char* argv[]) {
             // check if there are messages to pass
             for (int i = 0; i < MAX_CONCURRENT_USERS; i++) {
                 if (user_list[i].taken == 1) {
-                    
+
                 	// temporary buffer to hold potential message
-                    char buf[BUF_SIZE];
-                    memset(buf, '\0', BUF_SIZE);
+                    char buf[BUFFER_SIZE];
+                    memset(buf, '\0', BUFFER_SIZE);
                     ssize_t nread;
 
-                    if ((nread = read(user_list[i].read_from_child, buf, BUF_SIZE)) != -1) {
+                    if ((nread = read(user_list[i].read_from_child, buf, BUFFER_SIZE)) != -1) {
                         if (nread == 0) {
+                            char username[MAX_USERNAME_LEN];
+                            sprintf(username, "%s", user_list[i].username);
+
                             // the connection to this user was lost, so remove them
                             user_list_remove_user(user_list, i);
 
                             // notify all users that userlist has changed
-                            broadcast_user_list(user_list);
+                            notify_user_left(user_list, username);
                         }
                         else {
                             if (memcmp(buf, "/whisper", strlen("/whisper")) == 0) {
                                 // strtok modifies the original string so we must
                                 // make another copy to single out the recipient
-                                char rec_buf[BUF_SIZE];
-                                memset(rec_buf, '\0', BUF_SIZE);
+                                char rec_buf[BUFFER_SIZE];
+                                memset(rec_buf, '\0', BUFFER_SIZE);
                                 strcpy(rec_buf, buf + strlen("/whisper") + 1);
 
                                 char *recipient = strtok(rec_buf, " ");
@@ -337,45 +384,29 @@ int main(int argc, char* argv[]) {
                                 // connected users, so this check is unnecessary... in theory...
                                 if (recipient_index >= 0) {
                                 	// reformat the message to send it out
-                                	char outgoing[BUF_SIZE];
-                                	memset(outgoing, '\0', BUF_SIZE);
+                                	char outgoing[BUFFER_SIZE];
+                                	memset(outgoing, '\0', BUFFER_SIZE);
                                 	sprintf(outgoing, "/whispered %s %s", user_list[i].username, message);
 
                                     if (write(user_list[recipient_index].write_to_child, outgoing, strlen(outgoing)) < 0) {
                                     	perror("write() failed while whispering");
                                     }
-
-                                    // clear the outgoing buffer, use it to store a cc to original sender
-                                	memset(outgoing, '\0', BUF_SIZE);
-                                	sprintf(outgoing, "/whisperedcc %s %s", recipient, message);
-
-	                                if (write(user_list[i].write_to_child, outgoing, strlen(outgoing)) < 0) {
-	                                	perror("write() failed while whispering cc");
-	                                }
                                 }
                             }
-                            else if (memcmp(buf, "/shout", strlen("/shout")) == 0) {
-                                char *message = buf + strlen("/shout") + 1;
-                                
+                            else if (memcmp(buf, "/broadcast", strlen("/broadcast")) == 0) {
+                                char *message = buf + strlen("/broadcast") + 1;
+
                                 // reformat the message to send it out
-                                char outgoing[BUF_SIZE];
-                                memset(outgoing, '\0', BUF_SIZE);
-                                sprintf(outgoing, "/shouted %s %s", user_list[i].username, message);
+                                char outgoing[BUFFER_SIZE];
+                                memset(outgoing, '\0', BUFFER_SIZE);
+                                sprintf(outgoing, "/broadcasted %s %s", user_list[i].username, message);
 
                                 for (int j = 0; j < MAX_CONCURRENT_USERS; j++) {
                                     if (j != i && user_list[j].taken == 1) {
                                         if (write(user_list[j].write_to_child, outgoing, strlen(outgoing)) < 0) {
-                                        	perror("write() failed while shouting");
+                                        	perror("write() failed while broadcasting");
                                         }
                                     }
-                                }
-
-                                // clear the outgoing buffer, use it to store a cc to original sender
-                                memset(outgoing, '\0', BUF_SIZE);
-                                sprintf(outgoing, "/shoutedcc %s", message);
-
-                                if (write(user_list[i].write_to_child, outgoing, strlen(outgoing)) < 0) {
-                                	perror("write() failed while shouting cc");
                                 }
                             }
                             // add other commands here, if any

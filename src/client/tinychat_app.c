@@ -51,6 +51,6 @@ static void tinychat_app_class_init(TinyChatAppClass *class) {
 /* Returns a new instance of TinyChatApp. */
 TinyChatApp* tinychat_app_new(void) {
     return g_object_new(TINYCHAT_APP_TYPE_APPLICATION,
-                        "application-id", "danshervheim.tinychat",
+                        "application-id", "com.danielshervheim.tinychat",
                         NULL);
 }

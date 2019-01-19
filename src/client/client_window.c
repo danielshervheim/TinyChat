@@ -125,8 +125,11 @@ void on_loginFrameConnectIntent(ClientWindow *self, const char *address, const c
         else if (err == -2) {
             gtk_message_dialog_format_secondary_text(dia, "\'%s\' is too long.", username);
         }
+        else if (err == -3) {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' contains spaces.", username);
+        }
         else {
-            gtk_message_dialog_format_secondary_text(dia, "\'%s\' contains spaces.", username);   
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is not allowed.", username);
         }
 
         gtk_dialog_run(GTK_DIALOG(dia));
@@ -147,12 +150,12 @@ void on_loginFrameConnectIntent(ClientWindow *self, const char *address, const c
             gtk_message_dialog_format_secondary_text(dia, "\'socket\' system call failed.");
         }
         else {
-            gtk_message_dialog_format_secondary_text(dia, "\'connect\' system call failed.");   
+            gtk_message_dialog_format_secondary_text(dia, "\'connect\' system call failed.");
         }
 
         gtk_dialog_run(GTK_DIALOG(dia));
         gtk_widget_destroy(GTK_WIDGET(dia));
-        
+
         return;
     }
 
@@ -169,18 +172,24 @@ void on_loginFrameConnectIntent(ClientWindow *self, const char *address, const c
             gtk_message_dialog_format_secondary_text(dia, "The server is already full.");
         }
         else {
-            gtk_message_dialog_format_secondary_text(dia, "Sorry, we don't know what went wrong.");   
+            gtk_message_dialog_format_secondary_text(dia, "Sorry, we don't know what went wrong.");
         }
 
         gtk_dialog_run(GTK_DIALOG(dia));
         gtk_widget_destroy(GTK_WIDGET(dia));
-        
+
         return;
     }
 
     // todo: create a new chat frame instance, and set the initally connected users
-    // chat_frame_reset(self->m_chat_frame, client->m_userlist); ????? 
+    // chat_frame_reset(self->m_chat_frame, client->m_userlist); ?????
 
+    /*
+    chat_frame_add_user(self->m_chat_frame, "dan", 0);
+    chat_frame_add_user(self->m_chat_frame, "ben", 0);
+    chat_frame_add_user(self->m_chat_frame, "jeremy", 0);
+    chat_frame_remove_user(self->m_chat_frame, "dan", 0);
+    */
     // switch to the new chat frame
     gtk_stack_set_visible_child(self->m_stack, GTK_WIDGET(self->m_chat_frame));
 }
@@ -188,7 +197,10 @@ void on_loginFrameConnectIntent(ClientWindow *self, const char *address, const c
 
 
 void on_chatFrameSendMessageIntent(ClientWindow *self, const char *text) {
-    printf("%s\n", text);
+    // printf("%s\n", text);
+
+    // todo: if message sending was successful then clear entry, else spawn error dialog
+    chat_frame_clear_message_entry(self->m_chat_frame);
 }
 
 
@@ -213,7 +225,7 @@ static void client_window_class_init (ClientWindowClass *class) {
 static void client_window_init (ClientWindow *self) {
     // set the window properties
 	gtk_window_set_title(GTK_WINDOW(self), "TinyChat");
-    gtk_widget_set_size_request(GTK_WIDGET(self), 320, 480);
+    gtk_widget_set_size_request(GTK_WIDGET(self), 480, 320);
 
     // setup the stack
     self->m_stack = GTK_STACK(gtk_stack_new());
@@ -236,16 +248,22 @@ static void client_window_init (ClientWindow *self) {
 
     self->m_client = client_new();
     // todo: connect these callbacks to chat_frame methods directly, and pass in self->m_chat_frame
-    g_signal_connect_swapped(self->m_client, "message-received", (GCallback)on_clientMessageReceived, self);
-    g_signal_connect_swapped(self->m_client, "private-message-received", (GCallback)on_clientPrivateMessageReceived, self);
+    g_signal_connect_swapped(self->m_client, "message-received", (GCallback)chat_frame_add_message, self->m_chat_frame);
+    g_signal_connect_swapped(self->m_client, "private-message-received", (GCallback)chat_frame_add_private_message, self->m_chat_frame);
     g_signal_connect_swapped(self->m_client, "connection-lost", (GCallback)on_clientConnectionLost, self);
-    g_signal_connect_swapped(self->m_client, "user-joined", (GCallback)on_clientUserJoined, self);
-    g_signal_connect_swapped(self->m_client, "user-left", (GCallback)on_clientUserLeft, self);
+    g_signal_connect_swapped(self->m_client, "userlist-updated", (GCallback)chat_frame_userlist_updated, self->m_chat_frame);
+    // g_signal_connect_swapped(self->m_client, "user-left", (GCallback)on_clientUserLeft, self);
 
 
     // in press login button callback, connect and login to client
     g_signal_connect_swapped(self->m_login_frame, "connect-intent", (GCallback)on_loginFrameConnectIntent, self);
 
     // connect chat frame signals
-    g_signal_connect_swapped(self->m_chat_frame, "send-message-intent", (GCallback)on_chatFrameSendMessageIntent, self);
+    g_signal_connect_swapped(self->m_chat_frame, "send-private-message-intent", (GCallback)client_send_private_message, self->m_client);
+    g_signal_connect_swapped(self->m_chat_frame, "send-message-intent", (GCallback)client_send_broadcast, self->m_client);
+
+
+
+    // disconnect from server when window closes
+    g_signal_connect_swapped(self, "destroy", (GCallback)client_disconnect, self->m_client);
 }

@@ -26,8 +26,7 @@ struct _Client {
     GObject parent_instance;
     // member instances go here
     char m_username[MAX_USERNAME_LEN];
-    char m_userlist[MAX_CONCURRENT_USERS][MAX_USERNAME_LEN];
-    int m_userlist_i;
+    char *m_userlist;
     int m_socketFd;
 };
 
@@ -44,62 +43,14 @@ G_DEFINE_TYPE(Client, client, G_TYPE_OBJECT);
 
 
 
-
 /* sets up the initial user list */
 void userlist_setup(Client *self, const char* buffer) {
     // buffer is of form "<username1> <username2> ... <usernamei>"
-
-    for (int i = 0; i < MAX_CONCURRENT_USERS; i++) {
-        memset(self->m_userlist[i], '\0', MAX_USERNAME_LEN);
-    }
-
-    // strtok modifies buffer, so we first make a copy
-    char tmp[BUFFER_SIZE];
-    memset(tmp, '\0', BUFFER_SIZE);
-    strcpy(tmp, buffer);
-
-
-    // fill up this instances userlist by tokenizing
-    char *token = strtok(tmp, " ");
-
-    while (token != NULL) {
-    	strcpy(self->m_userlist[self->m_userlist_i], token);
-    	token = strtok(NULL, " ");
-    	self->m_userlist_i++;
-    }
+    strcpy(self->m_userlist, buffer);
+    g_signal_emit_by_name(self, "userlist-updated", self->m_userlist);
 }
 
 
-
-void userlist_joined(Client *self, const char *username) {
-    strcpy(self->m_userlist[self->m_userlist_i], username);
-    g_signal_emit_by_name(self, "user-joined", username);
-}
-
-
-
-void userlist_left(Client *self, const char *username) {
-    int x = 0;
-
-    for (int x = 0; x < self->m_userlist_i; x++) {
-        if (strcmp(self->m_userlist[x], username) == 0) {
-            break;
-        }
-    }
-
-    g_signal_emit_by_name(self, "user-left", username);
-
-    for (int i = x; i < self->m_userlist_i; i++) {
-        memset(self->m_userlist[i], '\0', MAX_USERNAME_LEN);
-        memcpy(self->m_userlist[i], self->m_userlist[i+1], MAX_USERNAME_LEN);
-    }
-
-    self->m_userlist_i--;
-
-    for (int i = 0; i < self->m_userlist_i; i++) {
-        printf("%d %s\n", i, self->m_userlist[i]);
-    }
-}
 
 
 
@@ -171,11 +122,8 @@ int server_poll(Client *self) {
             else if (memcmp(tmp, "/broadcasted", strlen("/broadcasted")) == 0) {
 				message_parse_broadcast(self, tmp + strlen("/broadcasted") + 1);
 			}
-            else if (memcmp(tmp, "/joined", strlen("/joined")) == 0) {
-                userlist_joined(self, tmp + strlen("/joined") + 1);
-			}
-            else if (memcmp(tmp, "/left", strlen("/left")) == 0) {
-                userlist_left(self, tmp + strlen("/left") + 1);
+            else if (memcmp(tmp, "/userlist", strlen("/userlist")) == 0) {
+                userlist_setup(self, tmp + strlen("/userlist") + 1);
 			}
         }
     }
@@ -213,12 +161,17 @@ int client_connect(Client *self, const char *port, const char *address, int *err
 		return 0;
 	}
 
+    self->m_userlist = malloc(sizeof(char) * BUFFER_SIZE);
+    memset(self->m_userlist, '\0', sizeof(char) * BUFFER_SIZE);
     return 1;  // success
 }
 
 void client_disconnect(Client *self) {
-    close(self->m_socketFd);
-    self->m_socketFd = -1;
+    if (self->m_socketFd != -1) {
+        close(self->m_socketFd);
+        self->m_socketFd = -1;
+        free(self->m_userlist);
+    }
 }
 
 // returns 1 on success, 0 on failure
@@ -253,8 +206,6 @@ int client_login(Client *self, const char *username, int *err) {
 			return 0;
 		}
 
-        userlist_setup(self, tmp + strlen("/joinresponse ok") + 1);
-
         g_timeout_add(MILLI_SLEEP_DUR, (void *)server_poll, self);
 
         return 1;
@@ -275,13 +226,40 @@ int client_login(Client *self, const char *username, int *err) {
     return 1;
 }
 
+
+
+
+
+
+
+
+
+
 // returns 1 on success, 0 on failure
 int client_send_broadcast(Client *self, const char *message) {
+    char outgoing[BUFFER_SIZE];
+    memset(outgoing, '\0', BUFFER_SIZE);
+    sprintf(outgoing, "/broadcast %s", message);
+
+    if (write(self->m_socketFd, outgoing, strlen(outgoing)) < 0) {
+        printf("\'write\' failed during broadcast\n");
+        return 0;
+    }
+
     return 1;
 }
 
 // returns 1 on success, 0 on unspecified error, -1 on recipient not connected
 int client_send_private_message(Client *self, const char *recipient, const char *message) {
+    char outgoing[BUFFER_SIZE];
+    memset(outgoing, '\0', BUFFER_SIZE);
+    sprintf(outgoing, "/whisper %s %s", recipient, message);
+
+    if (write(self->m_socketFd, outgoing, strlen(outgoing)) < 0) {
+        printf("\'write\' failed during whisper\n");
+        return 0;
+    }
+
     return 1;
 }
 
@@ -321,11 +299,7 @@ static void client_class_init (ClientClass *class) {
     	0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER, G_TYPE_POINTER);
 
     /* Fires on the client instance when a user has left the chat. */
-    g_signal_new("user-left", CLIENT_TYPE_OBJECT, G_SIGNAL_RUN_FIRST,
-    	0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
-
-    /* Fires on the client instance when a user has joined the chat. */
-    g_signal_new("user-joined", CLIENT_TYPE_OBJECT, G_SIGNAL_RUN_FIRST,
+    g_signal_new("userlist-updated", CLIENT_TYPE_OBJECT, G_SIGNAL_RUN_FIRST,
     	0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
 
     /* Fires on the client when the connection to the server is lost. */
@@ -339,7 +313,7 @@ static void client_init (Client *self) {
 
 	memset(self->m_username, '\0', MAX_USERNAME_LEN);
 
-    self->m_userlist_i = 0;
+    self->m_userlist = NULL;
 
 	self->m_socketFd = -1;
 }

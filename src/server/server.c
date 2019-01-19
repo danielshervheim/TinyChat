@@ -100,8 +100,7 @@ void broadcast_user_list(struct user *user_list) {
     }
 }
 
-
-
+/*
 // sends the user who left to all current users
 void notify_user_left(struct user *user_list, const char *username) {
     char msg[BUFFER_SIZE];
@@ -117,8 +116,6 @@ void notify_user_left(struct user *user_list, const char *username) {
     }
 }
 
-
-
 // sends the user who joined to all current users
 void notify_user_joined(struct user *user_list, const char *username) {
     char msg[BUFFER_SIZE];
@@ -133,6 +130,7 @@ void notify_user_joined(struct user *user_list, const char *username) {
         }
     }
 }
+*/
 
 
 
@@ -323,24 +321,14 @@ int main(int argc, char* argv[]) {
                         user_list[index_to_add].read_from_child = child_to_server[0];
                         user_list[index_to_add].taken = 1;
 
-                        char resp[BUFFER_SIZE];
-                        memset(resp, '\0', BUFFER_SIZE);
-                        sprintf(resp, "/joinresponse ok");
-
-                        for (int i = 0; i < MAX_CONCURRENT_USERS; i++) {
-                            if (user_list[i].taken == 1) {
-                                strcat(resp, " ");
-                                strcat(resp, user_list[i].username);
-                            }
-                        }
-
                         // notify the user that they are connected succesfully
-                        if (write(incoming_fd, resp, strlen(resp)) < 0) {
-                        	perror("write() failed while responding to join request");
-                        	user_list_remove_user(user_list, index_to_add);
+                        if (write(incoming_fd, "/joinresponse ok", strlen("/joinresponse ok")) < 0) {
+                            perror("write() failed while responding to join request");
+                            user_list_remove_user(user_list, index_to_add);
                         }
                         else {
-                        	notify_user_joined(user_list, username);
+                            // notify all users that userlist has changed
+                            broadcast_user_list(user_list);
                         }
                     }
                 }
@@ -358,14 +346,11 @@ int main(int argc, char* argv[]) {
 
                     if ((nread = read(user_list[i].read_from_child, buf, BUFFER_SIZE)) != -1) {
                         if (nread == 0) {
-                            char username[MAX_USERNAME_LEN];
-                            sprintf(username, "%s", user_list[i].username);
-
                             // the connection to this user was lost, so remove them
                             user_list_remove_user(user_list, i);
 
                             // notify all users that userlist has changed
-                            notify_user_left(user_list, username);
+                            broadcast_user_list(user_list);
                         }
                         else {
                             if (memcmp(buf, "/whisper", strlen("/whisper")) == 0) {

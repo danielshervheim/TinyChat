@@ -65,7 +65,7 @@ static void login_frame_init (LoginFrame *self) {
 	// set the correct entry parameters
 	gtk_entry_set_max_length(self->m_port, 5);
 	gtk_entry_set_max_length(self->m_username, MAX_USERNAME_LEN);
-	
+
 	// get the login button reference and set its icon
 	GtkWidget *connectButton = GTK_WIDGET(gtk_builder_get_object(builder, "connect_button"));
 	gtk_button_set_image(GTK_BUTTON(connectButton),

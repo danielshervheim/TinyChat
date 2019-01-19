@@ -16,15 +16,23 @@ struct _ChatFrame {
 
     GtkLabel *m_character_counter;
 
+    GtkComboBoxText *m_userlist_comboBoxText;
 };
 
 G_DEFINE_TYPE(ChatFrame, chat_frame, GTK_TYPE_BIN);
 
 
 
-void on_send_message_intent(ChatFrame *self) {
-    const gchar *text = gtk_entry_get_text(self->m_message_entry);
-    g_signal_emit_by_name(self, "send-message-intent", text);
+void on_send_intent(ChatFrame *self) {
+    const gchar *recipient = gtk_combo_box_text_get_active_text(self->m_userlist_comboBoxText);
+    const gchar *message = gtk_entry_get_text(self->m_message_entry);
+
+    if (strcmp(recipient, "Everyone") == 0) {
+        g_signal_emit_by_name(self, "send-message-intent", message);
+    }
+    else {
+        g_signal_emit_by_name(self, "send-private-message-intent", recipient, message);
+    }
 }
 
 
@@ -55,6 +63,57 @@ void on_message_entry_changed(ChatFrame *self) {
 
 
 
+void chat_frame_userlist_updated(ChatFrame *self, const char *userlist) {
+    // clear userlist
+    gtk_combo_box_text_remove_all(self->m_userlist_comboBoxText);
+    gtk_combo_box_text_append(self->m_userlist_comboBoxText, NULL, "Everyone");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(self->m_userlist_comboBoxText), 0);
+
+    char tmp_userlist[BUFFER_SIZE];
+    memset(tmp_userlist, '\0', BUFFER_SIZE);
+    strcpy(tmp_userlist, userlist);
+
+    char *token = strtok(tmp_userlist, " ");
+
+    while (token != NULL) {
+    	gtk_combo_box_text_append(self->m_userlist_comboBoxText, NULL, token);
+    	token = strtok(NULL, " ");
+    }
+}
+
+
+/*
+void chat_frame_set_initial_userlist(ChatFrame *self, const char *userlist) {
+    char tmp_userlist[BUFFER_SIZE];
+    memset(tmp_userlist, '\0', BUFFER_SIZE);
+    strcpy(tmp_userlist, userlist);
+
+    char *token = strtok(tmp_userlist, " ");
+
+    while (token != NULL) {
+    	gtk_combo_box_text_append(self->m_userlist_comboBoxText, NULL, token);
+    	token = strtok(NULL, " ");
+    }
+}
+*/
+
+
+void chat_frame_clear_message_entry(ChatFrame *self) {
+    gtk_entry_set_text(self->m_message_entry, "");
+}
+
+
+
+void chat_frame_add_message(ChatFrame *self, const char *sender, const char *message) {
+    printf("m: %s %s\n", sender, message);
+}
+
+void chat_frame_add_private_message(ChatFrame *self, const char *sender, const char *message) {
+    printf("pm: %s %s\n", sender, message);
+}
+
+
+
 
 
 
@@ -68,6 +127,9 @@ static void chat_frame_class_init (ChatFrameClass *class) {
     /* Fires when the user intends to send a message */
     g_signal_new("send-message-intent", CHAT_FRAME_TYPE_BIN, G_SIGNAL_RUN_FIRST,
       0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    g_signal_new("send-private-message-intent", CHAT_FRAME_TYPE_BIN, G_SIGNAL_RUN_FIRST,
+        0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER, G_TYPE_POINTER);
 }
 
 /* Initializes the ChatFrame instance. */
@@ -78,7 +140,7 @@ static void chat_frame_init (ChatFrame *self) {
     // get the main container from the builder and add it to the window
     GtkWidget *content = GTK_WIDGET(gtk_builder_get_object(builder, "chat_box"));
     gtk_container_add(GTK_CONTAINER(self), content);
-    gtk_widget_show_all(content);
+
 
 
     // get references to the message box and set its max length
@@ -91,8 +153,8 @@ static void chat_frame_init (ChatFrame *self) {
         gtk_image_new_from_resource("/tinychat/icons/icons8-sent-16.png"));
 
     // connect the send-message-intent signal handlers
-    g_signal_connect_swapped(self->m_message_entry, "activate", (GCallback)on_send_message_intent, self);
-    g_signal_connect_swapped(sendButton, "clicked", (GCallback)on_send_message_intent, self);
+    g_signal_connect_swapped(self->m_message_entry, "activate", (GCallback)on_send_intent, self);
+    g_signal_connect_swapped(sendButton, "clicked", (GCallback)on_send_intent, self);
 
     // connect references for input verification
     g_signal_connect_swapped(self->m_message_entry, "changed", (GCallback)on_message_entry_changed, self);
@@ -101,4 +163,12 @@ static void chat_frame_init (ChatFrame *self) {
     self->m_character_counter = GTK_LABEL(gtk_builder_get_object(builder, "char_counter_label"));
 
     // todo: userlist
+    self->m_userlist_comboBoxText = GTK_COMBO_BOX_TEXT(gtk_combo_box_text_new());
+    gtk_widget_set_tooltip_text(GTK_WIDGET(self->m_userlist_comboBoxText), "Message Recipient(s)");
+    gtk_box_pack_start(GTK_BOX(gtk_builder_get_object(builder, "commands_box")), GTK_WIDGET(self->m_userlist_comboBoxText), 0, 1, 0);
+    gtk_box_reorder_child(GTK_BOX(gtk_builder_get_object(builder, "commands_box")), GTK_WIDGET(self->m_userlist_comboBoxText), 0);
+
+
+
+    gtk_widget_show_all(content);
 }

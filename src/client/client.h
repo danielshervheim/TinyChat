@@ -36,6 +36,9 @@ int client_send_broadcast(Client *self, const char *message);
 // returns 1 on success, 0 on unspecified error, -1 on recipient not connected
 int client_send_private_message(Client *self, const char *recipient, const char *message);
 
+
+
+
 G_END_DECLS
 
 #endif  // CLIENT_H_

@@ -37,19 +37,9 @@ github.com/danielshervheim
 
 #message_body {  }
 
-.even_message {  }
-
-.odd_message {  }
-
-#message_body.shout {  }
-
-#message_body.shoutcc {  }
+#message_body.broadcast {  }
 
 #message_body.whisper {
-    /* font-style:italic; */
-}
-
-#message_body.whispercc {
     /* font-style:italic; */
 }
 

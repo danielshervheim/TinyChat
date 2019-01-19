@@ -26,7 +26,7 @@ void chat_frame_add_message(ChatFrame *self, const char *sender, const char *mes
 
 void chat_frame_add_private_message(ChatFrame *self, const char *sender, const char *message);
 
-void chat_frame_clear_message_entry(ChatFrame *self);
+void chat_frame_reset(ChatFrame *self);
 
 // clear_chat_frame
 //

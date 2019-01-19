@@ -52,9 +52,11 @@ void on_clientConnectionLost(ClientWindow *self) {
     // switch back to login frame
     gtk_stack_set_visible_child(self->m_stack, GTK_WIDGET(self->m_login_frame));
 
+    // reset the title
+    gtk_window_set_title(GTK_WINDOW(self), "TinyChat");
+
     // delete the current chat_window instance
-    // gtk_widget_destroy(GTK_WIDGET(self->m_chat_frame));
-    // self->m_chat_frame = NULL;
+    chat_frame_reset(self->m_chat_frame);
 
     // spawn error message
     GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
@@ -192,16 +194,16 @@ void on_loginFrameConnectIntent(ClientWindow *self, const char *address, const c
     */
     // switch to the new chat frame
     gtk_stack_set_visible_child(self->m_stack, GTK_WIDGET(self->m_chat_frame));
+
+
+    // update title 
+    char title[BUFFER_SIZE];
+    memset(title, '\0', BUFFER_SIZE);
+    sprintf(title, "%s @ %s:%s", username, address, port);
+    gtk_window_set_title(GTK_WINDOW(self), title);
 }
 
 
-
-void on_chatFrameSendMessageIntent(ClientWindow *self, const char *text) {
-    // printf("%s\n", text);
-
-    // todo: if message sending was successful then clear entry, else spawn error dialog
-    chat_frame_clear_message_entry(self->m_chat_frame);
-}
 
 
 
@@ -223,6 +225,13 @@ static void client_window_class_init (ClientWindowClass *class) {
 
 /* Initializes the ClientWindow instance. */
 static void client_window_init (ClientWindow *self) {
+    // set the css
+        // set the css
+    GtkCssProvider *css_provider = gtk_css_provider_new();
+    gtk_css_provider_load_from_resource(css_provider, "/tinychat/css/tinychat_client.css");
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css_provider),
+        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
     // set the window properties
 	gtk_window_set_title(GTK_WINDOW(self), "TinyChat");
     gtk_widget_set_size_request(GTK_WIDGET(self), 480, 320);

@@ -46,7 +46,27 @@ G_DEFINE_TYPE(Client, client, G_TYPE_OBJECT);
 /* sets up the initial user list */
 void userlist_setup(Client *self, const char* buffer) {
     // buffer is of form "<username1> <username2> ... <usernamei>"
-    strcpy(self->m_userlist, buffer);
+
+    // retokenize to remove your own username from the list
+
+    memset(self->m_userlist, '\0', sizeof(char) * BUFFER_SIZE);
+
+    char tmp_buffer[BUFFER_SIZE];
+    memset(tmp_buffer, '\0', BUFFER_SIZE);
+    strcpy(tmp_buffer, buffer);
+
+
+    char *token = strtok(tmp_buffer, " ");
+
+    while (token != NULL) {
+        if (strcmp(token, self->m_username) != 0) {
+            strcat(self->m_userlist, token);
+            strcat(self->m_userlist, " ");
+        }
+        token = strtok(NULL, " ");
+    }
+
+    // strcpy(self->m_userlist, buffer);
     g_signal_emit_by_name(self, "userlist-updated", self->m_userlist);
 }
 
@@ -169,8 +189,12 @@ int client_connect(Client *self, const char *port, const char *address, int *err
 void client_disconnect(Client *self) {
     if (self->m_socketFd != -1) {
         close(self->m_socketFd);
-        self->m_socketFd = -1;
+        self->m_socketFd = -1;        
+    }
+
+    if (self->m_userlist != NULL) {
         free(self->m_userlist);
+        self->m_userlist = NULL;
     }
 }
 
@@ -206,6 +230,8 @@ int client_login(Client *self, const char *username, int *err) {
 			return 0;
 		}
 
+        memset(self->m_username, '\0', MAX_USERNAME_LEN);
+        strcpy(self->m_username, username);
         g_timeout_add(MILLI_SLEEP_DUR, (void *)server_poll, self);
 
         return 1;

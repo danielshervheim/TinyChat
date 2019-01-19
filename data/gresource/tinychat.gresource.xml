@@ -12,6 +12,7 @@
 	</gresource>
 	<gresource prefix="/tinychat/glade">
 		<!--<file>new_image_dialog.glade</file>-->
+		<file>login_frame.glade</file>
 	</gresource>
 	<gresource prefix="/tinychat/css">
 		<file>tinychat_client.css</file>

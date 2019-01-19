@@ -11,6 +11,8 @@
 
 #include "client.h"
 
+#include "common.h"
+
 struct _ClientWindow {
     GtkWindow parent_instance;
 
@@ -44,9 +46,22 @@ void on_clientPrivateMessageReceived(ClientWindow *self, const char *sender, con
 }
 
 void on_clientConnectionLost(ClientWindow *self) {
+    // disconnect from the client officially
     client_disconnect(self->m_client);
 
-    // switch stack back to login frame, destroy chat frame and replace with new instance
+    // switch back to login frame
+    gtk_stack_set_visible_child(self->m_stack, GTK_WIDGET(self->m_login_frame));
+
+    // delete the current chat_window instance
+    gtk_widget_destroy(GTK_WIDGET(self->m_chat_frame));
+    self->m_chat_frame = NULL;
+
+    // spawn error message
+    GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
+            GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Connection Lost"));
+    gtk_message_dialog_format_secondary_text(dia, "The connection to the server was lost. Sorry about that!");
+    gtk_dialog_run(GTK_DIALOG(dia));
+    gtk_widget_destroy(GTK_WIDGET(dia));
 }
 
 
@@ -58,6 +73,118 @@ void on_clientUserLeft(ClientWindow *self, const char *username) {
     printf("%s left\n", username);
 }
 
+
+
+
+void on_loginFrameConnectIntent(ClientWindow *self, const char *address, const char *port, const char *username) {
+    // tmp
+    printf("address: %s port: %s username: %s\n", address, port, username);
+
+    int err;
+    if (!is_valid_address(address, &err)) {
+        GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
+            GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Invalid Address"));
+
+        if (err == -1) {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is too short.", address);
+        }
+        else {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is too long.", address);
+        }
+
+        gtk_dialog_run(GTK_DIALOG(dia));
+        gtk_widget_destroy(GTK_WIDGET(dia));
+
+        return;
+    }
+
+    if (!is_valid_port(port, &err)) {
+        GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
+            GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Invalid Port"));
+
+        if (err == -1) {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is too small.", port);
+        }
+        else {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is too large.", port);
+        }
+
+        gtk_dialog_run(GTK_DIALOG(dia));
+        gtk_widget_destroy(GTK_WIDGET(dia));
+
+        return;
+    }
+
+    if (!is_valid_username(username, &err)) {
+        GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
+            GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Invalid Username"));
+
+        if (err == -1) {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is too short.", username);
+        }
+        else if (err == -2) {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is too long.", username);
+        }
+        else {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' contains spaces.", username);   
+        }
+
+        gtk_dialog_run(GTK_DIALOG(dia));
+        gtk_widget_destroy(GTK_WIDGET(dia));
+
+        return;
+    }
+
+    // attempt server connection
+    if (!client_connect(self->m_client, port, address, &err)) {
+        GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
+            GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Connection Error"));
+
+        if (err == -1) {
+            gtk_message_dialog_format_secondary_text(dia, "\'getaddrinfo\' system call failed.");
+        }
+        else if (err == -2) {
+            gtk_message_dialog_format_secondary_text(dia, "\'socket\' system call failed.");
+        }
+        else {
+            gtk_message_dialog_format_secondary_text(dia, "\'connect\' system call failed.");   
+        }
+
+        gtk_dialog_run(GTK_DIALOG(dia));
+        gtk_widget_destroy(GTK_WIDGET(dia));
+        
+        return;
+    }
+
+    // attempt server login
+    if (!client_login(self->m_client, username, &err)) {
+        // (err: -1 username taken, -2 server full, -3 unspecified)
+        GtkMessageDialog *dia = GTK_MESSAGE_DIALOG(gtk_message_dialog_new(GTK_WINDOW(self),
+            GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_CLOSE, "Login Error"));
+
+        if (err == -1) {
+            gtk_message_dialog_format_secondary_text(dia, "\'%s\' is already taken.", username);
+        }
+        else if (err == -2) {
+            gtk_message_dialog_format_secondary_text(dia, "The server is already full.");
+        }
+        else {
+            gtk_message_dialog_format_secondary_text(dia, "Sorry, we don't know what went wrong.");   
+        }
+
+        gtk_dialog_run(GTK_DIALOG(dia));
+        gtk_widget_destroy(GTK_WIDGET(dia));
+        
+        return;
+    }
+
+    // todo: create a new chat frame instance, and set the initally connected users
+    self->m_chat_frame = chat_frame_new();
+    // chat_frame_set_initial_userlist(self->m_chat_frame, client->m_userlist); ????? 
+
+    // switch to the new chat frame
+    gtk_stack_set_visible_child(self->m_stack, GTK_WIDGET(self->m_chat_frame));
+}
 
 
 
@@ -84,9 +211,8 @@ static void client_window_init (ClientWindow *self) {
     gtk_stack_set_transition_type(self->m_stack, GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
     gtk_stack_set_transition_duration(self->m_stack, 150);
 
-    // setup the frames
+    // setup the login frame
     self->m_login_frame = login_frame_new();
-	self->m_chat_frame = chat_frame_new();
 
     // add the frames to the stack and set the login one as initial
     gtk_stack_add_named(self->m_stack, GTK_WIDGET(self->m_login_frame), "login_frame");
@@ -108,35 +234,5 @@ static void client_window_init (ClientWindow *self) {
 
 
     // in press login button callback, connect and login to client
-
-
-
-
-
-
-
-
-	// add stack and in stack spawn two instances of loginPane and chatPane
-	// connect the needed signals from each
-	// loginPane and chatPane both inherit from GtkBin -- only one item
-
-
-	// this window has a parameter "Client m_client --- which is the main interface between the client connection and message passing code, etc"
-
-	// this class overrides the following signals from the loginframe:
-	// login-attempt()
-
-    Client *client = client_new();
-    int err;
-    if (client_connect(client, "6002", "71.193.95.107", &err)) {
-        if (client_login(client, "daniel", &err)) {
-
-        }
-        else {
-            printf("login error %d\n", err);
-        }
-    }
-    else {
-        printf("connect error %d\n", err);
-    }
+    g_signal_connect_swapped(self->m_login_frame, "connect-intent", (GCallback)on_loginFrameConnectIntent, self);
 }

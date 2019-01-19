@@ -43,11 +43,11 @@ clean_resources:
 build:
 	mkdir -p build
 
-$(BIN)_client: compile_resources build src/client/*.c
-	$(CXX) -o build/$(BIN)_client src/client/*.c data/gresource/compiled/*.c $(CXXFLAGS)
+$(BIN)_client: compile_resources build src/client/*.c src/common.c
+	$(CXX) -o build/$(BIN)_client src/client/*.c data/gresource/compiled/*.c src/common.c $(CXXFLAGS)
 
-$(BIN)_server: build src/server/*.c
-	$(CXX) -o build/$(BIN)_server src/server/*.c $(CXXFLAGS)
+$(BIN)_server: build src/server/*.c src/common.c
+	$(CXX) -o build/$(BIN)_server src/server/*.c src/common.c $(CXXFLAGS)
 
 clean_build:
 	rm -rf build

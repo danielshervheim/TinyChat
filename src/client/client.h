@@ -36,23 +36,6 @@ int client_send_broadcast(Client *self, const char *message);
 // returns 1 on success, 0 on unspecified error, -1 on recipient not connected
 int client_send_private_message(Client *self, const char *recipient, const char *message);
 
-/*
-Signals emitted
-===============
-
-broadcast-received (Client *self, const char *sender, const char *message)
-
-private-message-received (Client *self, const char *sender, const char *message)
-
-user-left (Client *self, const char *username)
-
-user-joined (Client *self, const char *username)
-
-userlist-updated (Client *self, const char **users, int numusers)
-
-connection-lost (Client *self)
-*/
-
 void install_timer(Client *self);
 
 G_END_DECLS

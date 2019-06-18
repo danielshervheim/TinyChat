@@ -28,7 +28,7 @@ $ cd TinyChat
 $ make
 ```
 
-## Install
+### Install
 
 (compile first)
 

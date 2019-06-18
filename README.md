@@ -62,3 +62,11 @@ Additionally, the client can be started from the application launcher like any o
 The dropdown on the bottom left displays a list of all currently connected users. Selecting a users name from the list will send all your messages only to that user.
 
 Selecting the top "Everyone" option will send your messages to all currently connected users. This is the default option.
+
+### Uninstalling
+
+(install first)
+
+```
+$ sudo make uninstall
+```

@@ -36,7 +36,7 @@ $ sudo make install
 (install first)
 
 ```
-$ tinychat_server.app <port>
+$ tinychat_server <port>
 ```
 
 ### Starting the client

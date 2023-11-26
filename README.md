@@ -4,9 +4,9 @@
 
 I made it for fun, as an exercise in network and GUI programming. **TinyChat** uses TCP sockets to connect client(s) to a central server, and GTK to display the client GUI.
 
-![login window](https://i.imgur.com/oFXRBS4.png)
+![login window](img/oFXRBS4.png)
 
-![chat window](https://i.imgur.com/gyDsvkT.png)
+![chat window](img/gyDsvkT.png)
 
 ## Setup
 
